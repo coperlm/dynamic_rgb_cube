@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import to_rgb
 
@@ -17,6 +17,13 @@ class RGBCubeApp:
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+        # 添加导航工具栏，包含缩放等功能
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.master)
+        self.toolbar.update()
+        
+        # 启用鼠标交互功能
+        self.canvas.mpl_connect('scroll_event', self.on_scroll)
 
         self.setup_cube()
         
@@ -127,7 +134,11 @@ class RGBCubeApp:
 
         # RGB 值文本显示（同时显示浮点数和整数值）
         self.rgb_text_label = ttk.Label(control_frame, text="RGB: (0.000, 0.000, 0.000) | (0, 0, 0)")
-        self.rgb_text_label.grid(row=3, column=0, columnspan=4, pady=5, sticky="w")
+        self.rgb_text_label.grid(row=3, column=0, columnspan=3, pady=5, sticky="w")
+        
+        # 添加重置视图按钮
+        self.reset_view_button = ttk.Button(control_frame, text="重置视图", command=self.reset_view)
+        self.reset_view_button.grid(row=3, column=3, pady=5, padx=5, sticky="e")
 
         # 配置列权重，使滑块可以扩展
         control_frame.grid_columnconfigure(1, weight=1)
@@ -200,6 +211,49 @@ class RGBCubeApp:
         except Exception as e:
             # 如果出现任何错误，静默忽略，不影响程序运行
             print(f"Slider click error: {e}")  # 调试信息
+
+    def on_scroll(self, event):
+        """处理鼠标滚轮事件，实现缩放功能"""
+        if event.inaxes != self.ax:
+            return
+        
+        # 获取当前的坐标轴范围
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        zlim = self.ax.get_zlim()
+        
+        # 计算当前范围的中心点
+        x_center = (xlim[0] + xlim[1]) / 2
+        y_center = (ylim[0] + ylim[1]) / 2
+        z_center = (zlim[0] + zlim[1]) / 2
+        
+        # 计算当前范围的大小
+        x_range = xlim[1] - xlim[0]
+        y_range = ylim[1] - ylim[0]
+        z_range = zlim[1] - zlim[0]
+        
+        # 设置缩放因子
+        scale_factor = 1.1 if event.button == 'down' else 0.9
+        
+        # 计算新的范围
+        new_x_range = x_range * scale_factor
+        new_y_range = y_range * scale_factor
+        new_z_range = z_range * scale_factor
+        
+        # 设置新的坐标轴范围，保持中心不变
+        self.ax.set_xlim(x_center - new_x_range/2, x_center + new_x_range/2)
+        self.ax.set_ylim(y_center - new_y_range/2, y_center + new_y_range/2)
+        self.ax.set_zlim(z_center - new_z_range/2, z_center + new_z_range/2)
+        
+        # 重新绘制
+        self.canvas.draw_idle()
+
+    def reset_view(self):
+        """重置3D视图到初始状态"""
+        self.ax.set_xlim([0, 1])
+        self.ax.set_ylim([0, 1]) 
+        self.ax.set_zlim([0, 1])
+        self.canvas.draw_idle()
 
 # 主程序入口
 if __name__ == "__main__":
